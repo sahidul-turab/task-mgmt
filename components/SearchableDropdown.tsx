@@ -62,21 +62,21 @@ export default function SearchableDropdown({
             <button
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
-                className="w-full flex items-center gap-2 rounded-xl border border-[var(--border-muted)] bg-[var(--card)]/30 backdrop-blur-sm pl-3 pr-8 py-1.5 text-xs text-[var(--text)] transition-all hover:border-[var(--primary)]/30 focus:outline-none text-left h-[30px]"
+                className="w-full flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border border-[var(--border-muted)] bg-[var(--card)]/30 backdrop-blur-sm pl-2.5 sm:pl-3 pr-7 sm:pr-8 py-1 sm:py-1.5 text-[10px] sm:text-xs text-[var(--text)] transition-all hover:border-[var(--primary)]/30 focus:outline-none text-left h-[28px] sm:h-[30px]"
             >
-                <span className="text-[var(--text-subtle)] flex-shrink-0">{icon}</span>
+                <span className="text-[var(--text-subtle)] flex-shrink-0 scale-90 sm:scale-100">{icon}</span>
                 <span className="truncate font-bold">{selectedOption ? selectedOption.label : placeholder}</span>
                 {value && !disabled ? (
                     <X
-                        size={12}
-                        className="absolute right-7 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors z-10"
+                        size={11}
+                        className="absolute right-6 sm:right-7 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] hover:text-[var(--danger)] transition-colors z-10"
                         onClick={(e) => {
                             e.stopPropagation();
                             onChange('');
                         }}
                     />
                 ) : null}
-                <ChevronDown size={14} className={`absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={12} className={`absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             <AnimatePresence>

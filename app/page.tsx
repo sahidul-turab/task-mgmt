@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
@@ -85,17 +85,22 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState<'smart' | 'deadline' | 'priority' | 'name' | 'createdAt' | 'assignee'>('smart');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'done'>('todo');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const taskNameInputRef = useRef<HTMLInputElement>(null);
   const [confirmingTaskId, setConfirmingTaskId] = useState<string | null>(null);
 
+  // Mobile Experience States
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [density, setDensity] = useState<'comfortable' | 'condensed'>('comfortable');
 
-  // 🌓 Theme hook
+
+  // ðŸŒ“ Theme hook
   const { theme, toggleTheme, mounted } = useTheme();
 
-  // 🔥 Live subscription to Firestore
+  // ðŸ”¥ Live subscription to Firestore
   useEffect(() => {
     const q = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
 
@@ -203,7 +208,7 @@ export default function HomePage() {
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // 🔥 This is where a new task is saved to Firestore
+  // ðŸ”¥ This is where a new task is saved to Firestore
   const handleAddTask = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -282,7 +287,7 @@ export default function HomePage() {
   const toggleStatus = async (id: string, current: TaskStatus) => {
     const newStatus: TaskStatus = current === 'todo' ? 'done' : 'todo';
 
-    // 🎉 Confetti effect when completing a task
+    // ðŸŽ‰ Confetti effect when completing a task
     if (newStatus === 'done') {
       confetti({
         particleCount: 100,
@@ -313,8 +318,14 @@ export default function HomePage() {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } }
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    show: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { type: 'spring' as const, stiffness: 400, damping: 25, mass: 0.8 }
+    },
+    exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } }
   };
 
   const todayPretty = useMemo(
@@ -443,6 +454,48 @@ export default function HomePage() {
       });
   }, [tasks, search, personFilter, categoryFilter, fromDate, toDate, viewMode, sortBy, priorityFilter, statusFilter, todayDateStr]);
 
+  // Group tasks for sticky headers
+  const groupedTasks = useMemo(() => {
+    const groups = {
+      overdue: [] as Task[],
+      today: [] as Task[],
+      upcoming: [] as Task[],
+      noDeadline: [] as Task[],
+      completed: [] as Task[]
+    };
+
+    filteredTasks.forEach(t => {
+      if (t.status === 'done') {
+        groups.completed.push(t);
+        return;
+      }
+
+      // If manually sorting by something other than smart/deadline, we might want to respect that primarily
+      // But for "Sticky Date Grouping", we group by date buckets first.
+
+      if (!t.deadline) {
+        groups.noDeadline.push(t);
+        return;
+      }
+
+      if (t.deadline < todayDateStr) {
+        groups.overdue.push(t);
+      } else if (t.deadline === todayDateStr) {
+        groups.today.push(t);
+      } else {
+        groups.upcoming.push(t);
+      }
+    });
+
+    return groups;
+  }, [filteredTasks, todayDateStr]);
+
+  const progressPercentage = useMemo(() => {
+    if (tasks.length === 0) return 0;
+    const completed = tasks.filter(t => t.status === 'done').length;
+    return Math.round((completed / tasks.length) * 100);
+  }, [tasks]);
+
 
 
   const priorityLabel = (p: Priority) =>
@@ -468,7 +521,7 @@ export default function HomePage() {
   const completedCount = tasks.filter(t => t.status === 'done').length;
 
   return (
-    <main className="h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col overflow-hidden transition-colors duration-300">
+    <main className="h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col overflow-hidden transition-colors duration-300 antialiased">
       {/* suggestion lists for input */}
       <datalist id="person-list">
         {uniquePeople.map((p) => (
@@ -481,57 +534,55 @@ export default function HomePage() {
         ))}
       </datalist>
 
-      <div className="flex-1 flex flex-col overflow-hidden mx-auto w-full max-w-[1800px] px-3 py-3 md:py-4">
+      <div className="flex-1 flex flex-col overflow-hidden mx-auto w-full max-w-[1800px] px-2 sm:px-3 py-2 sm:py-4">
         {/* HEADER */}
-        <header className="flex-shrink-0 mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 bg-[var(--primary)]/10 rounded-2xl border border-[var(--primary)]/20 shadow-sm shadow-[var(--primary)]/5">
-              <Sparkles className="w-6 h-6 text-[var(--primary)]" />
+        <header className="flex-shrink-0 mb-3 sm:mb-4 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-2.5 bg-[var(--primary)]/10 rounded-xl sm:rounded-2xl border border-[var(--primary)]/20 shadow-sm shadow-[var(--primary)]/5">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--primary)]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl bg-clip-text text-transparent bg-gradient-to-br from-[var(--text)] to-[var(--text-muted)]">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight md:text-3xl bg-clip-text text-transparent bg-gradient-to-br from-[var(--text)] to-[var(--text-muted)]">
                 Task MGMT
               </h1>
-              <p className="text-sm text-[var(--text-muted)] font-medium">
-                Organize with speed. Deliver with precision.
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-end md:self-auto">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <button
               onClick={() => setMeetingMode(!meetingMode)}
-              className={`flex items-center gap-2 rounded-2xl px-4 py-2 border transition-all text-xs font-semibold shadow-sm overflow-hidden group ${meetingMode
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2 border transition-all text-[10px] sm:text-xs font-semibold shadow-sm overflow-hidden group ${meetingMode
                 ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
                 : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)] hover:border-[var(--primary)]/50'
                 }`}
             >
-              <Filter className={`w-3.5 h-3.5 transition-transform ${meetingMode ? 'scale-110' : 'group-hover:rotate-12'}`} />
-              {meetingMode ? 'Meeting active' : 'Meeting mode'}
+              <Filter className={`w-3 h-3 sm:w-3.5 sm:h-3.5 transition-transform ${meetingMode ? 'scale-110' : 'group-hover:rotate-12'}`} />
+              <span className="hidden xs:inline">{meetingMode ? 'Meeting active' : 'Meeting mode'}</span>
+              <span className="xs:hidden">{meetingMode ? 'Active' : 'Meet'}</span>
             </button>
             <button
               onClick={toggleTheme}
-              className="rounded-2xl bg-[var(--surface)] p-2.5 border border-[var(--border)] hover:border-[var(--primary)] transition-all shadow-sm hover:shadow-md group active:scale-90"
+              className="rounded-xl sm:rounded-2xl bg-[var(--surface)] p-2 sm:p-2.5 border border-[var(--border)] hover:border-[var(--primary)] transition-all shadow-sm hover:shadow-md group active:scale-90"
               aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
-              {theme === 'light' ? <Moon className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" /> : <Sun className="w-4 h-4 text-[var(-- amber)] group-hover:scale-110 transition-transform" />}
+              {theme === 'light' ? <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" /> : <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(-- amber)] group-hover:scale-110 transition-transform" />}
             </button>
-            <div className="hidden sm:flex items-center gap-3 rounded-2xl bg-[var(--surface)] px-4 py-2 shadow-sm border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors">
-              <Calendar className="w-4 h-4 text-[var(--primary)] group-hover:rotate-12 transition-transform" />
+            <div className="flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-[var(--surface)] px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary)] group-hover:rotate-12 transition-transform" />
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold tracking-widest text-[var(--text-subtle)] leading-none mb-0.5">
+                <p className="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-[var(--text-subtle)] leading-none mb-0.5">
                   Today
                 </p>
-                <p className="text-[13px] font-bold text-[var(--text)] whitespace-nowrap">
-                  {todayPretty}
+                <p className="text-[11px] sm:text-[13px] font-bold text-[var(--text)] whitespace-nowrap leading-tight">
+                  {todayPretty.split(',')[0]}
                 </p>
               </div>
             </div>
           </div>
         </header>
 
-        {/* QUICK STATS DASHBOARD */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* QUICK STATS DASHBOARD - HIDDEN ON MOBILE */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="p-3 rounded-2xl glass-panel border border-[var(--border-muted)] flex items-center justify-between group overflow-hidden relative">
             <div className="relative z-10">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-subtle)] mb-0.5">Active Tasks</p>
@@ -569,11 +620,11 @@ export default function HomePage() {
         {!meetingMode && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="fixed bottom-6 right-6 z-30 inline-flex items-center justify-center rounded-full bg-[var(--primary)] px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary-hover)] active:scale-[0.95] transition-all hover:shadow-xl"
+            className="fixed bottom-6 right-6 z-30 inline-flex items-center justify-center rounded-full bg-[var(--primary)] p-3 sm:px-5 sm:py-3 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary-hover)] active:scale-[0.95] transition-all hover:shadow-xl"
             aria-label="Add new task"
           >
-            <span className="text-xl mr-2">+</span>
-            New task
+            <Plus className="w-6 h-6 sm:mr-2" />
+            <span className="hidden sm:inline">New task</span>
           </button>
         )}
 
@@ -581,310 +632,395 @@ export default function HomePage() {
         <section className="flex-1 flex flex-col overflow-hidden rounded-2xl shadow-sm border border-[var(--border-muted)] backdrop-blur-xl bg-[var(--surface)]/80">
           {/* Fixed Header */}
           {/* Integrated Filter Bar */}
-          <div className="flex-shrink-0 p-2.5 border-b border-[var(--border-muted)]">
-            <div className="flex flex-wrap items-center gap-1.5 min-h-[32px]">
-              {/* Search */}
-              <div className="relative w-40 sm:w-56">
+          <div className="relative z-30 p-2 sm:p-2.5 border-b border-[var(--border-muted)] bg-[var(--card)]/30 backdrop-blur-md flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between flex-shrink-0">
+            <div className="flex items-center gap-1.5 min-h-[32px]">
+              <div className="relative flex-1 sm:flex-none sm:w-56">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-subtle)]" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search tasks…"
+                  placeholder="Search tasksâ€¦"
                   disabled={meetingMode}
                   className={`h-[30px] w-full rounded-xl border border-[var(--border-muted)] bg-[var(--card)]/50 backdrop-blur-md pl-8 pr-3 text-[11px] text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/10 transition-all ${meetingMode ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
               </div>
 
-              {/* View Mode Tabs */}
-              <div className="flex items-center gap-0.5 rounded-xl bg-[var(--card)]/30 backdrop-blur-md p-0.5 border border-[var(--border-muted)] h-[30px]">
-                {(['overdue', 'today', 'upcoming', 'noDeadline', 'all'] as ViewMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => !meetingMode && setViewMode(mode)}
-                    disabled={meetingMode}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all capitalize h-full flex items-center ${viewMode === mode
-                      ? 'bg-[var(--primary)] text-white shadow-sm'
-                      : 'text-[var(--text-muted)] hover:text-[var(--primary)]'
-                      } ${meetingMode ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    {mode === 'noDeadline' ? 'None' : mode}
-                  </button>
-                ))}
-              </div>
+              {/* Mobile Filter Trigger */}
+              <button
+                onClick={() => setShowMobileFilters(true)}
+                className={`flex sm:hidden items-center justify-center rounded-xl w-[30px] h-[30px] border transition-all text-[var(--text-muted)] border-[var(--border-muted)] bg-[var(--card)]/50 active:scale-90`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                {/* Dot indicator if filtered */}
+                {(personFilter || categoryFilter || fromDate || toDate || priorityFilter !== 'all' || viewMode !== 'all' || statusFilter !== 'todo') && (
+                  <div className="absolute top-[-2px] right-[-2px] w-2 h-2 rounded-full bg-[var(--primary)]" />
+                )}
+              </button>
 
-              {/* Status Filter */}
-              <div className="flex items-center gap-0.5 rounded-xl bg-[var(--card)]/30 backdrop-blur-md p-0.5 border border-[var(--border-muted)] h-[30px]">
-                {(['todo', 'done', 'all'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => !meetingMode && setStatusFilter(s)}
-                    disabled={meetingMode}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all capitalize h-full flex items-center ${statusFilter === s
-                      ? 'bg-[var(--primary)] text-white shadow-sm'
-                      : 'text-[var(--text-muted)] hover:text-[var(--primary)]'
-                      } ${meetingMode ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    {s === 'todo' ? 'Pending' : s === 'done' ? 'Completed' : 'Both'}
-                  </button>
-                ))}
-              </div>
+              {/* Mobile Density Toggle */}
+              <button
+                onClick={() => setDensity(d => d === 'comfortable' ? 'condensed' : 'comfortable')}
+                className="flex sm:hidden items-center justify-center rounded-xl w-[30px] h-[30px] border border-[var(--border-muted)] bg-[var(--card)]/50 text-[var(--text-muted)] active:scale-90"
+              >
+                {density === 'comfortable' ? <LayoutGrid className="w-3.5 h-3.5" /> : <MoreHorizontal className="w-3.5 h-3.5" />}
+              </button>
 
-              {/* Priority Dropdown */}
-              <SearchableDropdown
-                options={[
-                  { label: 'Priorities', value: 'all' },
-                  { label: 'High Priority', value: 'high' },
-                  { label: 'Medium Priority', value: 'medium' },
-                  { label: 'Low Priority', value: 'low' },
-                ]}
-                value={priorityFilter}
-                onChange={(val: string) => setPriorityFilter(val as any)}
-                placeholder="Priority"
-                icon={<ArrowUpDown className="w-3.5 h-3.5" />}
-                disabled={meetingMode}
-                searchable={false}
-                className="w-32"
-              />
+              <div className={`${showAdvancedFilters ? 'flex' : 'hidden'} sm:flex flex-wrap items-center gap-1.5 w-full sm:w-auto mt-2 sm:mt-0`}>
 
-              {/* Sort Dropdown */}
-              <SearchableDropdown
-                options={[
-                  { label: 'Smart Sort', value: 'smart' },
-                  { label: 'Deadline', value: 'deadline' },
-                  { label: 'Priority factor', value: 'priority' },
-                  { label: 'Task Name', value: 'name' },
-                  { label: 'Assignee Name', value: 'assignee' },
-                  { label: 'Newest', value: 'createdAt' },
-                ]}
-                value={sortBy}
-                onChange={(val: string) => setSortBy(val as any)}
-                placeholder="Sort By"
-                icon={<ArrowUpDown className="w-3.5 h-3.5" />}
-                disabled={meetingMode}
-                searchable={false}
-                className="w-32"
-              />
-
-              {/* Person Dropdown */}
-              <SearchableDropdown
-                options={uniquePeople}
-                value={personFilter}
-                onChange={setPersonFilter}
-                placeholder="All People"
-                icon={<User className="w-3.5 h-3.5" />}
-                disabled={meetingMode}
-                className="w-36"
-              />
-
-              {/* Category Dropdown */}
-              <SearchableDropdown
-                options={uniqueCategories}
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                placeholder="Categories"
-                icon={<Tag className="w-3.5 h-3.5" />}
-                disabled={meetingMode}
-                className="w-36"
-              />
-
-              {/* Date Range Box */}
-              <div className="flex items-center gap-1.5 bg-[var(--card)]/30 backdrop-blur-sm px-2.5 rounded-xl border border-[var(--border-muted)] h-[30px] group hover:border-[var(--primary)]/30 transition-all">
-                <Calendar className="w-3.5 h-3.5 text-[var(--text-subtle)] group-hover:text-[var(--primary)] flex-shrink-0" />
-                <div className="flex items-center">
-                  <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => !meetingMode && setFromDate(e.target.value)}
-                    disabled={meetingMode}
-                    className="bg-transparent text-[10px] font-bold text-[var(--text)] outline-none w-[95px] cursor-pointer"
-                  />
-                  <span className="text-[var(--text-subtle)] mx-0.5 opacity-30">—</span>
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => !meetingMode && setToDate(e.target.value)}
-                    disabled={meetingMode}
-                    className="bg-transparent text-[10px] font-bold text-[var(--text)] outline-none w-[95px] cursor-pointer"
-                  />
+                {/* View Mode Tabs */}
+                <div className="flex flex-shrink-0 items-center gap-0.5 rounded-lg sm:rounded-xl bg-[var(--card)]/30 backdrop-blur-md p-0.5 border border-[var(--border-muted)] h-[28px] sm:h-[30px]">
+                  {(['overdue', 'today', 'upcoming', 'noDeadline', 'all'] as ViewMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => !meetingMode && setViewMode(mode)}
+                      disabled={meetingMode}
+                      className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold transition-all capitalize h-full flex items-center ${viewMode === mode
+                        ? 'bg-[var(--primary)] text-white shadow-sm'
+                        : 'text-[var(--text-muted)] hover:text-[var(--primary)]'
+                        } ${meetingMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {mode === 'noDeadline' ? 'None' : mode}
+                    </button>
+                  ))}
                 </div>
-                {(fromDate || toDate) && (
+
+                {/* Status Filter */}
+                <div className="flex flex-shrink-0 items-center gap-0.5 rounded-lg sm:rounded-xl bg-[var(--card)]/30 backdrop-blur-md p-0.5 border border-[var(--border-muted)] h-[28px] sm:h-[30px]">
+                  {(['todo', 'done', 'all'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => !meetingMode && setStatusFilter(s)}
+                      disabled={meetingMode}
+                      className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold transition-all capitalize h-full flex items-center ${statusFilter === s
+                        ? 'bg-[var(--primary)] text-white shadow-sm'
+                        : 'text-[var(--text-muted)] hover:text-[var(--primary)]'
+                        } ${meetingMode ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      {s === 'todo' ? 'Pending' : s === 'done' ? 'Completed' : 'Both'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Priority Dropdown */}
+                <SearchableDropdown
+                  options={[
+                    { label: 'Priorities', value: 'all' },
+                    { label: 'High Priority', value: 'high' },
+                    { label: 'Medium Priority', value: 'medium' },
+                    { label: 'Low Priority', value: 'low' },
+                  ]}
+                  value={priorityFilter}
+                  onChange={(val: string) => setPriorityFilter(val as any)}
+                  placeholder="Priority"
+                  icon={<ArrowUpDown className="w-3.5 h-3.5" />}
+                  disabled={meetingMode}
+                  searchable={false}
+                  className="w-32"
+                />
+
+                {/* Sort Dropdown */}
+                <SearchableDropdown
+                  options={[
+                    { label: 'Smart Sort', value: 'smart' },
+                    { label: 'Deadline', value: 'deadline' },
+                    { label: 'Priority factor', value: 'priority' },
+                    { label: 'Task Name', value: 'name' },
+                    { label: 'Assignee Name', value: 'assignee' },
+                    { label: 'Newest', value: 'createdAt' },
+                  ]}
+                  value={sortBy}
+                  onChange={(val: string) => setSortBy(val as any)}
+                  placeholder="Sort By"
+                  icon={<ArrowUpDown className="w-3.5 h-3.5" />}
+                  disabled={meetingMode}
+                  searchable={false}
+                  className="w-32"
+                />
+
+                {/* Person Dropdown */}
+                <SearchableDropdown
+                  options={uniquePeople}
+                  value={personFilter}
+                  onChange={setPersonFilter}
+                  placeholder="All People"
+                  icon={<User className="w-3.5 h-3.5" />}
+                  disabled={meetingMode}
+                  className="w-36"
+                />
+
+                {/* Category Dropdown */}
+                <SearchableDropdown
+                  options={uniqueCategories}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  placeholder="Categories"
+                  icon={<Tag className="w-3.5 h-3.5" />}
+                  disabled={meetingMode}
+                  className="w-36"
+                />
+
+                {/* Date Range Box */}
+                <div className="flex items-center gap-1.5 bg-[var(--card)]/30 backdrop-blur-sm px-2.5 rounded-xl border border-[var(--border-muted)] h-[30px] group hover:border-[var(--primary)]/30 transition-all">
+                  <Calendar className="w-3.5 h-3.5 text-[var(--text-subtle)] group-hover:text-[var(--primary)] flex-shrink-0" />
+                  <div className="flex items-center">
+                    <input
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => !meetingMode && setFromDate(e.target.value)}
+                      disabled={meetingMode}
+                      className="bg-transparent text-[10px] font-bold text-[var(--text)] outline-none w-[95px] cursor-pointer"
+                    />
+                    <span className="text-[var(--text-subtle)] mx-0.5 opacity-30">â€”</span>
+                    <input
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => !meetingMode && setToDate(e.target.value)}
+                      disabled={meetingMode}
+                      className="bg-transparent text-[10px] font-bold text-[var(--text)] outline-none w-[95px] cursor-pointer"
+                    />
+                  </div>
+                  {(fromDate || toDate) && (
+                    <button
+                      onClick={() => { setFromDate(''); setToDate(''); }}
+                      className="p-0.5 rounded-full hover:bg-[var(--danger)]/10 text-[var(--text-subtle)] hover:text-[var(--danger)] transition-all"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+
+                {(personFilter || categoryFilter || fromDate || toDate || search || priorityFilter !== 'all' || viewMode !== 'all' || statusFilter !== 'todo') && !meetingMode && (
                   <button
-                    onClick={() => { setFromDate(''); setToDate(''); }}
-                    className="p-0.5 rounded-full hover:bg-[var(--danger)]/10 text-[var(--text-subtle)] hover:text-[var(--danger)] transition-all"
+                    onClick={() => {
+                      setPersonFilter('');
+                      setCategoryFilter('');
+                      setFromDate('');
+                      setToDate('');
+                      setSearch('');
+                      setPriorityFilter('all');
+                      setViewMode('all');
+                      setStatusFilter('todo');
+                    }}
+                    className="h-[30px] rounded-xl border border-[var(--danger)]/20 bg-[var(--danger)]/5 px-2.5 text-[10px] font-bold text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-all active:scale-95"
                   >
-                    <X size={10} />
+                    Clear all
                   </button>
                 )}
               </div>
-
-              {(personFilter || categoryFilter || fromDate || toDate || search || priorityFilter !== 'all' || viewMode !== 'all' || statusFilter !== 'todo') && !meetingMode && (
-                <button
-                  onClick={() => {
-                    setPersonFilter('');
-                    setCategoryFilter('');
-                    setFromDate('');
-                    setToDate('');
-                    setSearch('');
-                    setPriorityFilter('all');
-                    setViewMode('all');
-                    setStatusFilter('todo');
-                  }}
-                  className="h-[30px] rounded-xl border border-[var(--danger)]/20 bg-[var(--danger)]/5 px-2.5 text-[10px] font-bold text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-all active:scale-95"
-                >
-                  Clear all
-                </button>
-              )}
             </div>
           </div>
 
 
           {/* Scrollable Task Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+            {/* Progress Pulse (Mobile Only) */}
+            <div className="sm:hidden w-full h-1 bg-[var(--border-muted)] mt-0 mb-2 relative overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="absolute left-0 top-0 bottom-0 bg-[var(--primary)]/50 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+              />
+            </div>
+
             {filteredTasks.length === 0 ? (
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-subtle)]">
                 No tasks match the current filters.
               </div>
             ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5"
-              >
-                <AnimatePresence initial={false}>
-                  {filteredTasks.map((task, index) => {
-                    const overdue =
-                      !!task.deadline && task.deadline < todayDateStr && task.status !== 'done';
-                    const dueToday =
-                      !!task.deadline && task.deadline === todayDateStr && task.status !== 'done';
+              <div className="space-y-6 pb-20 sm:pb-4">
+                {(['overdue', 'today', 'upcoming', 'noDeadline', 'completed'] as const).map((groupKey) => {
+                  const groupTasks = groupedTasks[groupKey as keyof typeof groupedTasks];
+                  if (groupTasks.length === 0) return null;
 
-                    // Subtle grouping: extra spacing before first "Due today" and first "Overdue"
-                    const isFirstOverdue = overdue && index > 0 &&
-                      !filteredTasks.slice(0, index).some(t =>
-                        !!t.deadline && t.deadline < todayDateStr && t.status !== 'done'
-                      );
-                    const isFirstDueToday = dueToday && index > 0 &&
-                      !filteredTasks.slice(0, index).some(t =>
-                        !!t.deadline && t.deadline === todayDateStr && t.status !== 'done'
-                      ) &&
-                      !filteredTasks.slice(0, index).some(t =>
-                        !!t.deadline && t.deadline < todayDateStr && t.status !== 'done'
-                      );
+                  const groupLabel = {
+                    overdue: 'Overdue',
+                    today: 'Today',
+                    upcoming: 'Upcoming',
+                    noDeadline: 'No Deadline',
+                    completed: 'Completed'
+                  }[groupKey];
 
-                    return (
+                  const groupColor = {
+                    overdue: 'text-[var(--danger)]',
+                    today: 'text-[var(--amber)]',
+                    upcoming: 'text-[var(--primary)]',
+                    noDeadline: 'text-[var(--text-subtle)]',
+                    completed: 'text-[var(--text-muted)]'
+                  }[groupKey];
+
+                  return (
+                    <div key={groupKey} className="relative">
+                      {/* Sticky Header */}
+                      <div className="sticky top-0 z-20 bg-[var(--bg)]/95 backdrop-blur-md py-2 mb-2 border-b border-[var(--border-muted)] flex items-center justify-between px-1">
+                        <h3 className={`text-xs font-black uppercase tracking-widest ${groupColor}`}>
+                          {groupLabel} <span className="opacity-50 ml-1">({groupTasks.length})</span>
+                        </h3>
+                      </div>
+
                       <motion.div
-                        layout
-                        variants={itemVariants}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        key={task.id}
-                        onClick={() => openDrawer(task)}
-                        whileHover={{ y: -2, boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                        whileTap={{ scale: 0.98 }}
-                        className="relative"
+                        variants={containerVariants}
+                        initial="hidden"
+                        animate="show"
+                        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5"
                       >
-                        <div className={`task-card group relative bg-[var(--card)] rounded-2xl p-3 pl-4 cursor-pointer shadow-sm border border-l-4 border-[var(--border-muted)] hover:border-r-[var(--primary)]/30 transition-all duration-300 ${task.priority === 'high' ? 'border-l-[var(--danger)]/80' :
-                          task.priority === 'medium' ? 'border-l-[var(--amber)]/80' :
-                            'border-l-slate-500/50'
-                          } ${isFirstOverdue || isFirstDueToday ? 'mt-6' : ''}`}>
+                        <AnimatePresence initial={false}>
+                          {groupTasks.map((task) => {
+                            const overdue = !!task.deadline && task.deadline < todayDateStr && task.status !== 'done';
+                            const dueToday = !!task.deadline && task.deadline === todayDateStr && task.status !== 'done';
 
-                          <div className="flex items-start justify-between gap-2 mb-2.5">
-                            <h3 className={`font-bold text-[13px] leading-tight flex-1 line-clamp-2 ${task.status === 'done' ? 'text-[var(--text-subtle)] line-through' : 'text-[var(--text)]'
-                              }`}>
-                              {task.name}
-                            </h3>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (task.status === 'done') {
-                                  toggleStatus(task.id, task.status);
-                                } else {
-                                  if (confirmingTaskId === task.id) {
-                                    toggleStatus(task.id, task.status);
-                                    setConfirmingTaskId(null);
-                                  } else {
-                                    setConfirmingTaskId(task.id);
-                                    // Reset after 3 seconds of inactivity
-                                    setTimeout(() => {
-                                      setConfirmingTaskId(current => current === task.id ? null : current);
-                                    }, 3000);
-                                  }
-                                }
-                              }}
-                              className={`rounded-xl transition-all flex-shrink-0 flex items-center gap-1.5 ${task.status === 'done'
-                                ? 'p-1.5 bg-[var(--success)]/10 text-[var(--success)]'
-                                : confirmingTaskId === task.id
-                                  ? 'pl-2 pr-1.5 py-1 bg-[var(--success)]/20 text-[var(--success)] ring-2 ring-[var(--success)]/20 shadow-lg shadow-[var(--success)]/10'
-                                  : 'p-1.5 text-[var(--text-subtle)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10'
-                                }`}
-                            >
-                              {task.status === 'done' ? (
-                                <CheckCircle2 className="w-4 h-4" />
-                              ) : confirmingTaskId === task.id ? (
-                                <>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider">Confirm?</span>
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </>
-                              ) : (
-                                <Circle className="w-4 h-4 opacity-40 group-hover:opacity-100" />
-                              )}
-                            </button>
-                          </div>
-
-                          <div className="space-y-3">
-                            {task.person && (
-                              <div className="flex items-center gap-2">
-                                <div className="flex -space-x-2">
-                                  {task.person.split(',').map((p, i) => {
-                                    const part = p.trim();
-                                    if (!part) return null;
-                                    const initials = part.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                                    return (
-                                      <div key={i} className="h-5.5 w-5.5 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-[8px] font-bold text-white shadow-sm ring-2 ring-[var(--card)] flex-shrink-0 group-hover:rotate-3 transition-transform">
-                                        {initials}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                <span className="text-[10px] font-bold text-[var(--text-muted)] line-clamp-1">
-                                  {task.person}
-                                </span>
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {task.deadline && (
-                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[9px] font-bold border transition-all ${overdue && task.status !== 'done'
-                                  ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20'
-                                  : dueToday && task.status !== 'done'
-                                    ? 'bg-[var(--amber)]/10 text-[var(--amber)] border-[var(--amber)]/20'
-                                    : 'bg-[var(--card-hover)] text-[var(--text-muted)] border-transparent'
+                            return (
+                              <motion.div
+                                layout
+                                variants={itemVariants}
+                                exit="exit"
+                                key={task.id}
+                                onClick={() => openDrawer(task)}
+                                whileHover={{ y: -4, scale: 1.02, boxShadow: '0 12px 20px -5px rgb(0 0 0 / 0.1)' }}
+                                whileTap={{ scale: 0.95 }}
+                                className="relative touch-manipulation"
+                                style={{ touchAction: 'pan-y' }}
+                              >
+                                <div className={`task-card group relative bg-[var(--card)] rounded-xl sm:rounded-2xl 
+                                  ${density === 'condensed' ? 'p-2 pl-2.5 flex items-center gap-3' : 'p-2.5 sm:p-3 pl-3 sm:pl-4'}
+                                  cursor-pointer shadow-sm border border-l-4 border-[var(--border-muted)] hover:border-r-[var(--primary)]/30 transition-all duration-300 
+                                  ${task.priority === 'high' ? 'border-l-[var(--danger)]/80' :
+                                    task.priority === 'medium' ? 'border-l-[var(--amber)]/80' :
+                                      'border-l-slate-500/50'
                                   }`}>
-                                  <Calendar className="w-2.5 h-2.5" />
-                                  <span>{task.status === 'done' ? formatDeadline(task.deadline) : getRelativeDeadlineLabel(task.deadline, todayDateStr)}</span>
-                                </div>
-                              )}
 
-                              {task.category && (
-                                <div className="flex items-center gap-1 text-[9px] font-bold text-[var(--text-subtle)] bg-[var(--card-hover)]/30 px-2 py-0.5 rounded-lg border border-transparent group-hover:border-[var(--border-muted)] transition-all">
-                                  <Tag className="w-2.5 h-2.5" />
-                                  <span className="line-clamp-1 max-w-[90px]">{task.category}</span>
+                                  {/* Condensed View Layout */}
+                                  {density === 'condensed' ? (
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleStatus(task.id, task.status);
+                                        }}
+                                        className={`flex-shrink-0 ${task.status === 'done' ? 'text-[var(--success)]' : 'text-[var(--text-subtle)]'}`}
+                                      >
+                                        {task.status === 'done' ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                                      </button>
+
+                                      <div className="flex-1 min-w-0">
+                                        <h3 className={`font-bold text-[12px] truncate ${task.status === 'done' ? 'text-[var(--text-subtle)] line-through' : 'text-[var(--text)]'}`}>
+                                          {task.name}
+                                        </h3>
+                                      </div>
+
+                                      {task.person && (
+                                        <div className="flex -space-x-1.5 flex-shrink-0">
+                                          {task.person.split(',').slice(0, 2).map((p, i) => {
+                                            const initials = p.trim().split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                                            return (
+                                              <div key={i} className="h-5 w-5 rounded-md bg-[var(--primary)] flex items-center justify-center text-[8px] font-bold text-white ring-1 ring-[var(--card)]">
+                                                {initials}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    /* Comfortable View (Existing Layout) */
+                                    <>
+                                      <div className="flex items-start justify-between gap-1.5 sm:gap-2 mb-2 sm:mb-2.5">
+                                        <h3 className={`font-bold text-[12px] sm:text-[13px] leading-tight flex-1 line-clamp-2 ${task.status === 'done' ? 'text-[var(--text-subtle)] line-through' : 'text-[var(--text)]'
+                                          }`}>
+                                          {task.name}
+                                        </h3>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (task.status === 'done') {
+                                              toggleStatus(task.id, task.status);
+                                            } else {
+                                              if (confirmingTaskId === task.id) {
+                                                toggleStatus(task.id, task.status);
+                                                setConfirmingTaskId(null);
+                                              } else {
+                                                setConfirmingTaskId(task.id);
+                                                setTimeout(() => setConfirmingTaskId(current => current === task.id ? null : current), 3000);
+                                              }
+                                            }
+                                          }}
+                                          className={`rounded-lg sm:rounded-xl transition-all flex-shrink-0 flex items-center gap-1 sm:gap-1.5 ${task.status === 'done'
+                                            ? 'p-1 sm:p-1.5 bg-[var(--success)]/10 text-[var(--success)]'
+                                            : confirmingTaskId === task.id
+                                              ? 'pl-1.5 pr-1 py-1 bg-[var(--success)]/20 text-[var(--success)] ring-2 ring-[var(--success)]/20'
+                                              : 'p-1 sm:p-1.5 text-[var(--text-subtle)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10'
+                                            }`}
+                                        >
+                                          {task.status === 'done' ? (
+                                            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                          ) : confirmingTaskId === task.id ? (
+                                            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                          ) : (
+                                            <Circle className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-40 group-hover:opacity-100" />
+                                          )}
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-3">
+                                        {task.person && (
+                                          <div className="flex items-center gap-1.5 sm:gap-2">
+                                            <div className="flex -space-x-1.5 sm:-space-x-2">
+                                              {task.person.split(',').map((p, i) => {
+                                                const part = p.trim();
+                                                if (!part) return null;
+                                                const initials = part.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                                                return (
+                                                  <div key={i} className="h-5 w-5 sm:h-5.5 sm:w-5.5 rounded-md sm:rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center text-[7px] sm:text-[8px] font-bold text-white shadow-sm ring-1 sm:ring-2 ring-[var(--card)] flex-shrink-0 group-hover:rotate-3 transition-transform">
+                                                    {initials}
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                            <span className="text-[9.5px] sm:text-[10px] font-bold text-[var(--text-muted)] line-clamp-1">
+                                              {task.person}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {task.deadline && (
+                                            <div className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg text-[8.5px] sm:text-[9px] font-bold border transition-all ${overdue && task.status !== 'done'
+                                              ? 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20'
+                                              : dueToday && task.status !== 'done'
+                                                ? 'bg-[var(--amber)]/10 text-[var(--amber)] border-[var(--amber)]/20'
+                                                : 'bg-[var(--card-hover)] text-[var(--text-muted)] border-transparent'
+                                              }`}>
+                                              <Calendar className="w-2.5 h-2.5" />
+                                              <span className="truncate max-w-[100px] sm:max-w-none">{task.status === 'done' ? formatDeadline(task.deadline) : getRelativeDeadlineLabel(task.deadline, todayDateStr)}</span>
+                                            </div>
+                                          )}
+
+                                          {task.category && (
+                                            <div className="flex items-center gap-1 text-[8.5px] sm:text-[9px] font-bold text-[var(--text-subtle)] bg-[var(--card-hover)]/30 px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg border border-transparent group-hover:border-[var(--border-muted)] transition-all">
+                                              <Tag className="w-2.5 h-2.5" />
+                                              <span className="line-clamp-1 max-w-[70px] sm:max-w-[90px]">{task.category}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
                       </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
+
           </div>
         </section>
-
-
 
         {/* TASK DRAWER */}
         <TaskDrawer
@@ -1072,7 +1208,7 @@ export default function HomePage() {
                         </div>
                       </div>
                       <div className="group">
-                        <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-subtle)] group-hover:text-[var(--primary)] transition-colors">
+                        <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-subtle)] group-hover:text(--primary)] transition-colors">
                           <div className="flex items-center gap-2">
                             <Tag className="w-3 h-3" />
                             Category
@@ -1140,7 +1276,126 @@ export default function HomePage() {
             </>
           )}
         </AnimatePresence>
-      </div>
-    </main>
+      </div >
+      {/* Mobile Filter Sheet */}
+      <AnimatePresence>
+        {
+          showMobileFilters && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm sm:hidden"
+                onClick={() => setShowMobileFilters(false)}
+              />
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] border-t border-[var(--border-muted)] rounded-t-[32px] shadow-2xl p-6 sm:hidden max-h-[85vh] overflow-y-auto"
+              >
+                <div className="w-12 h-1.5 bg-[var(--border-muted)] rounded-full mx-auto mb-6" />
+
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-subtle)] mb-3">View</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(['overdue', 'today', 'upcoming', 'noDeadline', 'all'] as ViewMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => { setViewMode(mode); }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all capitalize ${viewMode === mode
+                            ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                            : 'bg-[var(--card)] text-[var(--text-muted)] border-[var(--border-muted)]'
+                            }`}
+                        >
+                          {mode === 'noDeadline' ? 'No Date' : mode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-subtle)] mb-3">Status</h3>
+                    <div className="flex gap-2">
+                      {(['todo', 'done', 'all'] as const).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setStatusFilter(s)}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all capitalize ${statusFilter === s
+                            ? 'bg-[var(--primary)] text-white border-[var(--primary)]'
+                            : 'bg-[var(--card)] text-[var(--text-muted)] border-[var(--border-muted)]'
+                            }`}
+                        >
+                          {s === 'todo' ? 'Pending' : s === 'done' ? 'Completed' : 'Both'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--text-subtle)] mb-3">Sort By</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Smart Sort', value: 'smart' },
+                        { label: 'Deadline', value: 'deadline' },
+                        { label: 'Priority', value: 'priority' },
+                        { label: 'Newest', value: 'createdAt' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setSortBy(opt.value as any)}
+                          className={`px-3 py-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-between ${sortBy === opt.value
+                            ? 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20'
+                            : 'bg-[var(--card)] text-[var(--text-muted)] border-[var(--border-muted)]'
+                            }`}
+                        >
+                          {opt.label}
+                          {sortBy === opt.value && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* People & Categories are still dropdowns but styled for mobile if needed, or we keep them as is in the main UI? 
+                     User requested "Native-style Bottom Sheet". Let's put common filters here.
+                 */}
+
+                  <div className="pt-4 border-t border-[var(--border-muted)] flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowMobileFilters(false);
+                      }}
+                      className="flex-1 py-3.5 rounded-2xl bg-[var(--primary)] text-white font-bold shadow-lg shadow-[var(--primary)]/20"
+                    >
+                      Done
+                    </button>
+                    {(personFilter || categoryFilter || fromDate || toDate || priorityFilter !== 'all' || viewMode !== 'all' || statusFilter !== 'todo') && (
+                      <button
+                        onClick={() => {
+                          setPersonFilter('');
+                          setCategoryFilter('');
+                          setFromDate('');
+                          setToDate('');
+                          setSearch('');
+                          setPriorityFilter('all');
+                          setViewMode('all');
+                          setStatusFilter('todo');
+                        }}
+                        className="px-4 py-3.5 rounded-2xl bg-[var(--danger)]/10 text-[var(--danger)] font-bold"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )
+        }
+      </AnimatePresence >
+    </main >
   );
 }
