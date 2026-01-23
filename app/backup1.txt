@@ -1,0 +1,351 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+
+type TaskStatus = 'todo' | 'done';
+
+interface Task {
+  id: string;
+  name: string;
+  deadline?: string | null; // 'YYYY-MM-DD'
+  person?: string | null;
+  status: TaskStatus;
+  createdAt: string; // ISO string
+}
+
+const STORAGE_KEY = 'ops_task_portal_tasks_v1';
+
+export default function HomePage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [name, setName] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [person, setPerson] = useState('');
+  const [search, setSearch] = useState('');
+  const [personFilter, setPersonFilter] = useState('All');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [hideCompleted, setHideCompleted] = useState(false);
+
+  // Load from localStorage on first render
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        const parsed: Task[] = JSON.parse(raw);
+        setTasks(parsed);
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever tasks change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }, [tasks]);
+
+  const uniquePeople = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach((t) => {
+      if (t.person && t.person.trim()) set.add(t.person.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
+
+  const handleAddTask = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert('Task name is required.');
+      return;
+    }
+
+    const newTask: Task = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: trimmedName,
+      deadline: deadline || null,
+      person: person.trim() || null,
+      status: 'todo',
+      createdAt: new Date().toISOString(),
+    };
+
+    setTasks((prev) => [newTask, ...prev]);
+    setName('');
+    setDeadline('');
+    setPerson('');
+  };
+
+  const toggleStatus = (id: string) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, status: t.status === 'todo' ? 'done' : 'todo' } : t,
+      ),
+    );
+  };
+
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter((t) => {
+        if (hideCompleted && t.status === 'done') return false;
+
+        if (search.trim()) {
+          const q = search.trim().toLowerCase();
+          if (!t.name.toLowerCase().includes(q)) return false;
+        }
+
+        if (personFilter !== 'All') {
+          if ((t.person || '').trim() !== personFilter) return false;
+        }
+
+        if ((fromDate || toDate) && t.deadline) {
+          const d = t.deadline;
+          if (fromDate && d < fromDate) return false;
+          if (toDate && d > toDate) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort: todo first, then by deadline, then createdAt desc
+        if (a.status !== b.status) {
+          return a.status === 'todo' ? -1 : 1;
+        }
+        const da = a.deadline || '';
+        const db = b.deadline || '';
+        if (da !== db) return da.localeCompare(db);
+        return b.createdAt.localeCompare(a.createdAt);
+      });
+  }, [tasks, search, personFilter, fromDate, toDate, hideCompleted]);
+
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-slate-50">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:py-10">
+        {/* Header */}
+        <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Ops Task Portal
+            </h1>
+            <p className="text-sm text-slate-300">
+              Fast like WhatsApp, organized like a board.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-800/70 px-4 py-2 text-right shadow-lg shadow-slate-900/50">
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              Today
+            </p>
+            <p className="text-sm font-medium">{today}</p>
+          </div>
+        </header>
+
+        <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          {/* Add Task Card */}
+          <section className="rounded-3xl bg-slate-900/80 p-5 shadow-xl shadow-black/50 backdrop-blur">
+            <h2 className="mb-4 text-lg font-semibold text-slate-50">
+              Add a new task
+            </h2>
+
+            <div className="mb-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-300">
+                  Task name <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Follow up with Minhaz about CMS issue"
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-300">
+                    Deadline (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-300">
+                    Person (optional)
+                  </label>
+                  <input
+                    value={person}
+                    onChange={(e) => setPerson(e.target.value)}
+                    placeholder="e.g. Minhaz, Rafi, Tech Team"
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddTask}
+              className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/40 transition hover:bg-indigo-400 active:scale-[0.99]"
+            >
+              + Add Task
+            </button>
+
+            <p className="mt-3 text-xs text-slate-400">
+              Only the task name is required. You can always add deadlines or
+              people later.
+            </p>
+          </section>
+
+          {/* List + Filters Card */}
+          <section className="rounded-3xl bg-slate-900/80 p-5 shadow-xl shadow-black/50 backdrop-blur">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-lg font-semibold text-slate-50">
+                Tasks ({filteredTasks.length}/{tasks.length})
+              </h2>
+              <div className="flex items-center gap-2">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={hideCompleted}
+                    onChange={(e) => setHideCompleted(e.target.checked)}
+                    className="h-3 w-3 rounded border-slate-600 bg-slate-900 text-indigo-500 focus:ring-indigo-500"
+                  />
+                  Hide completed
+                </label>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="mb-4 space-y-3">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by task name…"
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              />
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="md:col-span-1">
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-300">
+                    Person
+                  </label>
+                  <select
+                    value={personFilter}
+                    onChange={(e) => setPersonFilter(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-50 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    <option value="All">All</option>
+                    {uniquePeople.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-300">
+                    Deadline from
+                  </label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-50 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-300">
+                    Deadline to
+                  </label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-50 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
+              <div className="grid grid-cols-[auto,2fr,1fr,1fr] gap-2 border-b border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                <div>Status</div>
+                <div>Task</div>
+                <div>Deadline</div>
+                <div>Person</div>
+              </div>
+
+              {filteredTasks.length === 0 ? (
+                <div className="px-4 py-6 text-center text-sm text-slate-400">
+                  No tasks match the current filters.
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-800">
+                  {filteredTasks.map((task) => (
+                    <li
+                      key={task.id}
+                      className="grid grid-cols-[auto,2fr,1fr,1fr] items-center gap-2 px-3 py-2 text-sm"
+                    >
+                      <button
+                        onClick={() => toggleStatus(task.id)}
+                        className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-600 bg-slate-900 text-xs text-slate-200 transition hover:border-indigo-400 hover:text-indigo-300"
+                        title="Toggle done"
+                      >
+                        {task.status === 'done' ? '✓' : ''}
+                      </button>
+                      <div className="pr-2">
+                        <p
+                          className={
+                            'truncate ' +
+                            (task.status === 'done'
+                              ? 'text-slate-500 line-through'
+                              : 'text-slate-50')
+                          }
+                        >
+                          {task.name}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          Added:{' '}
+                          {new Date(task.createdAt).toLocaleString(undefined, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-xs text-slate-200">
+                        {task.deadline ? (
+                          <span>{task.deadline}</span>
+                        ) : (
+                          <span className="text-slate-500">No deadline</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-200">
+                        {task.person ? (
+                          <span>{task.person}</span>
+                        ) : (
+                          <span className="text-slate-500">—</span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}

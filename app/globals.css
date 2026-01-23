@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+/* Clean Reset and Theme Tokens */
+:root,
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --surface: rgba(255, 255, 255, 0.7);
+  --card: #ffffff;
+  --card-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-muted: #f1f5f9;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --accent: #8b5cf6;
+  --chip: #f1f5f9;
+  --danger: #ef4444;
+  --amber: #f59e0b;
+  --success: #10b981;
+  --radius: 20px;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+[data-theme="dark"] {
+  --bg: #020617;
+  --surface: rgba(15, 23, 42, 0.7);
+  --card: #1e293b;
+  --card-hover: #334155;
+  --border: #1e293b;
+  --border-muted: #33415555;
+  --text: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #475569;
+  --primary: #818cf8;
+  --primary-hover: #6366f1;
+  --accent: #a78bfa;
+  --chip: #1e293b;
+  --danger: #f87171;
+  --amber: #fbbf24;
+  --success: #34d399;
+}
+
+
+
+body {
+  background: var(--bg);
+  background-image:
+    radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(225, 39%, 10%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(263, 49%, 15%, 1) 0, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-outfit), sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(at 0% 0%, hsla(215, 66%, 95%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(180, 50%, 97%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(300, 30%, 95%, 1) 0, transparent 50%);
+}
+
+.glass-panel {
+  backdrop-filter: blur(24px);
+  background-color: var(--surface);
+  border: 1px solid var(--border-muted);
+  box-shadow: var(--shadow);
+}
+
+/* Priority badge theme support */
+[data-theme="dark"] .bg-slate-100 {
+  background-color: rgb(30 41 59 / 0.5);
+  color: rgb(203 213 225);
+  border-color: rgb(51 65 85);
+}
+
+[data-theme="dark"] .bg-slate-50 {
+  background-color: rgb(30 41 59 / 0.3);
+  color: rgb(148 163 184);
+  border-color: rgb(51 65 85);
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Task card elevation base */
+.task-card {
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+@keyframes pulse-subtle {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
