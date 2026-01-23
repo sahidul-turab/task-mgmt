@@ -14,6 +14,7 @@ import {
 import { db } from '../firebaseClient';
 import TaskDrawer from '../components/TaskDrawer';
 import SearchableDropdown from '../components/SearchableDropdown';
+import SettingsModal from '../components/SettingsModal';
 import { useTheme } from '../hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -38,7 +39,8 @@ import {
   X,
   Sparkles,
   Info,
-  ArrowUpDown
+  ArrowUpDown,
+  Settings
 } from 'lucide-react';
 
 
@@ -95,6 +97,13 @@ export default function HomePage() {
   // Mobile Experience States
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [density, setDensity] = useState<'comfortable' | 'condensed'>('comfortable');
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
 
   // ðŸŒ“ Theme hook
@@ -522,6 +531,7 @@ export default function HomePage() {
 
   return (
     <main className="h-screen bg-[var(--bg)] text-[var(--text)] flex flex-col overflow-hidden transition-colors duration-300 antialiased">
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
       {/* suggestion lists for input */}
       <datalist id="person-list">
         {uniquePeople.map((p) => (
@@ -567,14 +577,21 @@ export default function HomePage() {
             >
               {theme === 'light' ? <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" /> : <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(-- amber)] group-hover:scale-110 transition-transform" />}
             </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="rounded-xl sm:rounded-2xl bg-[var(--surface)] p-2 sm:p-2.5 border border-[var(--border)] hover:border-[var(--primary)] transition-all shadow-sm hover:shadow-md group active:scale-90"
+              aria-label="Settings"
+            >
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors" />
+            </button>
             <div className="flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl bg-[var(--surface)] px-2.5 sm:px-4 py-1.5 sm:py-2 shadow-sm border border-[var(--border)] group hover:border-[var(--primary)]/30 transition-colors">
               <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--primary)] group-hover:rotate-12 transition-transform" />
-              <div className="text-right">
+              <div className="text-right min-w-[80px]">
                 <p className="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-[var(--text-subtle)] leading-none mb-0.5">
-                  Today
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </p>
                 <p className="text-[11px] sm:text-[13px] font-bold text-[var(--text)] whitespace-nowrap leading-tight">
-                  {todayPretty.split(',')[0]}
+                  {currentTime.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                 </p>
               </div>
             </div>
