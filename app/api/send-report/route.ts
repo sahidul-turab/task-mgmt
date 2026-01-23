@@ -32,8 +32,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Email reports are disabled or no recipients found.' });
         }
 
-        // 2. Fetch Tasks
-        const todayStr = new Date().toISOString().slice(0, 10);
+        // 2. Fetch Tasks using Bangladesh local date
+        // Create a date object in UTC, then add 6 hours to get Bangladesh time
+        const now = new Date();
+        const bdTime = new Date(now.getTime() + (6 * 60 * 60 * 1000));
+        const todayStr = bdTime.toISOString().slice(0, 10);
+
+        console.log(`Generating report for BD Date: ${todayStr} (Server UTC: ${now.toISOString()})`);
+
         const tasksRef = collection(db, 'tasks');
         const tasksSnap = await getDocs(query(tasksRef, orderBy('deadline', 'asc')));
 

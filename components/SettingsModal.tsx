@@ -162,7 +162,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             className="w-full h-11 px-4 rounded-xl border border-[var(--border)] bg-[var(--card)]/50 text-sm focus:border-[var(--primary)]/50 focus:outline-none transition-all"
                         />
                         <p className="text-[10px] text-[var(--text-subtle)] px-1">
-                            Note: Reports are triggered via Vercel Cron. Current setup is for 1:00 AM Bangladesh Time (BST).
+                            Note: Reports are triggered via Vercel Cron. Current setup is for 2:00 AM Bangladesh Time (BST).
                         </p>
                     </div>
 
