@@ -18,6 +18,7 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
+import { getRelativeDeadlineLabel } from '../lib/utils';
 
 type TaskStatus = 'todo' | 'done';
 type Priority = 'low' | 'medium' | 'high';
@@ -287,6 +288,11 @@ export default function TaskDrawer({ task, onClose, onDelete, uniquePeople, uniq
                       onChange={(e) => setEditDeadline(e.target.value)}
                       className="w-full bg-[var(--card)]/50 border border-[var(--border-muted)] rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]/30"
                     />
+                    {editDeadline && (
+                      <p className="mt-2 text-[10px] font-bold text-[var(--primary)] opacity-80 uppercase tracking-[0.1em]">
+                        {getRelativeDeadlineLabel(editDeadline, new Date().toISOString().slice(0, 10))}
+                      </p>
+                    )}
                   </div>
                   <div className="group">
                     <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-subtle)] mb-3 group-hover:text-[var(--primary)] transition-colors">

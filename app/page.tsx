@@ -17,6 +17,7 @@ import SearchableDropdown from '../components/SearchableDropdown';
 import { useTheme } from '../hooks/useTheme';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { formatDeadline, getRelativeDeadlineLabel } from '../lib/utils';
 import {
   CheckCircle2,
   Circle,
@@ -59,43 +60,6 @@ interface Task {
 
 const DEFAULT_PERSON = 'Me';
 
-function formatDeadline(deadline?: string | null) {
-  if (!deadline) return 'No deadline';
-
-  // deadline is stored as 'YYYY-MM-DD'
-  const d = new Date(deadline);
-  if (Number.isNaN(d.getTime())) return 'No deadline';
-
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }); // e.g. 11 December 2025
-}
-
-function getRelativeDeadlineLabel(deadline: string, todayDateStr: string): string {
-  const deadlineDate = new Date(deadline);
-  const todayDate = new Date(todayDateStr);
-
-  // Reset time to compare dates only
-  deadlineDate.setHours(0, 0, 0, 0);
-  todayDate.setHours(0, 0, 0, 0);
-
-  const diffTime = deadlineDate.getTime() - todayDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    // Overdue
-    const daysOverdue = Math.abs(diffDays);
-    return `Overdue · ${daysOverdue}d`;
-  } else if (diffDays === 0) {
-    return 'Due today';
-  } else if (diffDays === 1) {
-    return 'Due tomorrow';
-  } else {
-    return `Due in ${diffDays} days`;
-  }
-}
 
 
 export default function HomePage() {
@@ -522,11 +486,11 @@ export default function HomePage() {
         <header className="flex-shrink-0 mb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="flex items-start gap-3">
             <div className="p-2.5 bg-[var(--primary)]/10 rounded-2xl border border-[var(--primary)]/20 shadow-sm shadow-[var(--primary)]/5">
-              <LayoutGrid className="w-6 h-6 text-[var(--primary)]" />
+              <Sparkles className="w-6 h-6 text-[var(--primary)]" />
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl bg-clip-text text-transparent bg-gradient-to-br from-[var(--text)] to-[var(--text-muted)]">
-                Ops Task Portal
+                Task MGMT
               </h1>
               <p className="text-sm text-[var(--text-muted)] font-medium">
                 Organize with speed. Deliver with precision.
@@ -676,7 +640,7 @@ export default function HomePage() {
                   { label: 'Low Priority', value: 'low' },
                 ]}
                 value={priorityFilter}
-                onChange={(val) => setPriorityFilter(val as any)}
+                onChange={(val: string) => setPriorityFilter(val as any)}
                 placeholder="Priority"
                 icon={<ArrowUpDown className="w-3.5 h-3.5" />}
                 disabled={meetingMode}
@@ -695,7 +659,7 @@ export default function HomePage() {
                   { label: 'Newest', value: 'createdAt' },
                 ]}
                 value={sortBy}
-                onChange={(val) => setSortBy(val as any)}
+                onChange={(val: string) => setSortBy(val as any)}
                 placeholder="Sort By"
                 icon={<ArrowUpDown className="w-3.5 h-3.5" />}
                 disabled={meetingMode}
@@ -898,7 +862,7 @@ export default function HomePage() {
                                     : 'bg-[var(--card-hover)] text-[var(--text-muted)] border-transparent'
                                   }`}>
                                   <Calendar className="w-2.5 h-2.5" />
-                                  <span>{task.status === 'done' ? formatDeadline(task.deadline) : getRelativeDeadlineLabel(task.deadline, todayDateStr).replace('Due ', '')}</span>
+                                  <span>{task.status === 'done' ? formatDeadline(task.deadline) : getRelativeDeadlineLabel(task.deadline, todayDateStr)}</span>
                                 </div>
                               )}
 
