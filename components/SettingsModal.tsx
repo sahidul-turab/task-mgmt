@@ -17,7 +17,7 @@ interface EmailSettings {
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [settings, setSettings] = useState<EmailSettings>({
         recipients: [],
-        reportTime: '09:00',
+        reportTime: '10:00',
         isEnabled: false,
     });
     const [newEmail, setNewEmail] = useState('');
@@ -93,11 +93,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 alert('Test report sent successfully!');
             } else {
                 if (data) {
-                    alert(`Failed to send test: ${data.error || data.message || 'Unknown error'}`);
+                    const errorDetail = typeof data.error === 'object' ? JSON.stringify(data.error) : (data.error || data.message || 'Unknown error');
+                    alert(`Failed to send test: ${errorDetail}`);
                 } else {
                     const text = await response.text();
                     console.error('Server returned an error (likely HTML):', text);
-                    alert(`Server Error: Received an HTML response instead of JSON. This usually means the API route crashed or doesn't exist. Check server console.`);
+                    alert(`Server Error: Received an HTML response instead of JSON.`);
                 }
             }
         } catch (error) {
@@ -150,19 +151,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </button>
                     </div>
 
-                    {/* Time Picker */}
+                    {/* Time Info (Fixed due to Vercel Cron) */}
                     <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
                             <Clock className="w-3 h-3" /> Report Time
                         </label>
-                        <input
-                            type="time"
-                            value={settings.reportTime}
-                            onChange={(e) => setSettings({ ...settings, reportTime: e.target.value })}
-                            className="w-full h-11 px-4 rounded-xl border border-[var(--border)] bg-[var(--card)]/50 text-sm focus:border-[var(--primary)]/50 focus:outline-none transition-all"
-                        />
+                        <div className="w-full h-11 px-4 rounded-xl border border-[var(--border-muted)] bg-[var(--surface-hover)] flex items-center justify-between">
+                            <span className="text-sm font-bold text-[var(--text)]">10:00 AM</span>
+                            <span className="text-[10px] font-bold text-[var(--primary)] uppercase bg-[var(--primary)]/10 px-2 py-0.5 rounded-md">Fixed Schedule</span>
+                        </div>
                         <p className="text-[10px] text-[var(--text-subtle)] px-1">
-                            Note: Reports are triggered via Vercel Cron. Current setup is for 2:00 AM Bangladesh Time (BST).
+                            Note: This time is synchronized with Vercel Cron (10:00 AM BST). To change this, a code redeploy is required.
                         </p>
                     </div>
 

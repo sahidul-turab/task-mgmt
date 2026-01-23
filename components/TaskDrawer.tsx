@@ -103,7 +103,7 @@ export default function TaskDrawer({ task, onClose, onDelete, uniquePeople, uniq
       priority: editPriority,
       category: editCategory || null,
       status: editStatus,
-      person: editAssignees.length > 0 ? editAssignees.join(', ') : 'Me'
+      person: editAssignees.length > 0 ? editAssignees.join(', ') : 'Turab'
     };
 
     try {

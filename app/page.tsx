@@ -60,7 +60,7 @@ interface Task {
   description?: string | null;
 }
 
-const DEFAULT_PERSON = 'Me';
+const DEFAULT_PERSON = 'Turab';
 
 
 
